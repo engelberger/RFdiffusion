@@ -9,7 +9,7 @@ from Attention_module import Attention, FeedForwardLayer, AttentionWithBias
 from Track_module import PairStr2Pair
 from icecream import ic
 import math
-
+CYCLIC = True
 # Module contains classes and functions to generate initial embeddings
 
 def get_timestep_embedding(timesteps, embedding_dim, max_positions=10000):
@@ -96,13 +96,37 @@ class PositionalEncoding2D(nn.Module):
         self.maxpos = maxpos
         self.nbin = abs(minpos)+maxpos+1
         self.emb = nn.Embedding(self.nbin, d_model)
+        # p_drop = 0.0
         self.drop = nn.Dropout(p_drop)
 
     def forward(self, x, idx):
         bins = torch.arange(self.minpos, self.maxpos, device=x.device)
         seqsep = idx[:,None,:] - idx[:,:,None] # (B, L, L)
-        #
-        ib = torch.bucketize(seqsep, bins).long() # (B, L, L)
+
+        if CYCLIC:
+            # Separate between unconditional and conditional (with target) generation
+            # Chains are separated by 200 aa for binding protein vs. target (+200)
+            ind = torch.nonzero(idx.diff() > 200)
+            # ind.size(0)==0 -> no difference above 200
+            if ind.size(0) == 0:
+                seqsep_cyc = self.cyclic_offset(idx.size(1)).to(idx.device)
+                ib = torch.bucketize(seqsep_cyc, bins).long()
+
+            # ind.size(0)==0 -> value exists above 200
+            elif ind.size(0) == 1:
+                L_cyc = ind[0, 1].item() + 1
+                # create cyclic positioning
+                seqsep_cyc = self.cyclic_offset(L_cyc).to(idx.device)
+
+                # replace upper left matrix for binder with cyclic positioning
+                seqsep[:, :L_cyc, :L_cyc] = seqsep_cyc
+                ib = torch.bucketize(seqsep, bins).long()  # (B, L, L)
+            else:
+                raise ValueError("Something went wrong with the position encoding...")
+
+        else:
+            ib = torch.bucketize(seqsep, bins).long()  # (B, L, L)
+
         emb = self.emb(ib) #(B, L, L, d_model)
         x = x + emb # add relative positional encoding
         return self.drop(x)
