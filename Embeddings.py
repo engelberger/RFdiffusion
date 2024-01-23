@@ -98,7 +98,17 @@ class PositionalEncoding2D(nn.Module):
         self.emb = nn.Embedding(self.nbin, d_model)
         # p_drop = 0.0
         self.drop = nn.Dropout(p_drop)
-
+    
+    @staticmethod
+    def cyclic_offset(L):
+        i = torch.arange(L, dtype=torch.long)
+        offset = (i.unsqueeze(1) - i.unsqueeze(0)).T  # Linear offset matrix
+        # Adjust offsets for cyclic behavior
+        half_L = L // 2
+        offset[offset > half_L] -= L
+        offset[offset < -half_L] += L
+        return offset
+    
     def forward(self, x, idx):
         bins = torch.arange(self.minpos, self.maxpos, device=x.device)
         seqsep = idx[:,None,:] - idx[:,:,None] # (B, L, L)
