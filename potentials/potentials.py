@@ -726,16 +726,16 @@ class cyclic_peptide_geometry(Potential):
 
     python /content/RFdiffusion/run_inference.py \
     inference.input_pdb=cyclic_peptide_12res.pdb \
-    inference.output_prefix=outputs/test-12 \
+    inference.output_prefix=outputs/test-6 \
     inference.num_designs=4 \
     inference.cyclic_peptide=True \
     diffuser.T=50 \
-    'contigmap.contigs=[12-12]' \
+    'contigmap.contigs=[6-6]' \
     inference.dump_pdb=True \
     inference.dump_pdb_path='/dev/shm' \
-    'potentials.guiding_potentials=[{"type": "cyclic_peptide_geometry", "weight": 1.0, "params": {"n_residues": 12, "target_radius": 5.0}}]'
+    'potentials.guiding_potentials=[{"type": "cyclic_peptide_geometry", "weight": 1.0, "params": {"n_residues": 6, "target_radius": 5.0}}]'
 
-    This potential will encourage the cyclic peptide to maintain a regular 12-sided polygon shape with a radius of 5.0 Angstroms. You can adjust the `n_residues`, `target_radius`, and `weight` parameters to suit your specific needs.
+    This potential will encourage the cyclic peptide to maintain a regular 6-sided polygon shape with a radius of 5.0 Angstroms. You can adjust the `n_residues`, `target_radius`, and `weight` parameters to suit your specific needs.
 
     '''
 
