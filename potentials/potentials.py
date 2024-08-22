@@ -708,6 +708,35 @@ class cyclic_peptide_geometry(Potential):
     '''
     Potential to encourage a specific geometry for cyclic peptides.
     This potential aims to maintain a regular polygon shape with a specified number of sides.
+
+    This `cyclic_peptide_geometry` potential does the following:
+
+    1. It initializes with the number of residues, a target radius, and a weight for the potential.
+    2. It calculates target coordinates for a regular polygon with the specified number of sides.
+    3. In the `compute` method, it:
+    - Extracts the CA coordinates of the peptide.
+    - Centers the coordinates around their centroid.
+    - Calculates the current radii and angles of the residues.
+    - Sorts the residues by their angular positions.
+    - Calculates the distance between the current and target coordinates.
+    - Adds a term to encourage uniform spacing between residues.
+    - Combines these terms into a single potential.
+
+    To use this potential in your RFdiffusion setup, you would add it to your configuration file or command line arguments. For example:
+
+    python /content/RFdiffusion/run_inference.py \
+    inference.input_pdb=cyclic_peptide_12res.pdb \
+    inference.output_prefix=outputs/test-12 \
+    inference.num_designs=4 \
+    inference.cyclic_peptide=True \
+    diffuser.T=50 \
+    'contigmap.contigs=[12-12]' \
+    inference.dump_pdb=True \
+    inference.dump_pdb_path='/dev/shm' \
+    'potentials.guiding_potentials=[{"type": "cyclic_peptide_geometry", "weight": 1.0, "params": {"n_residues": 12, "target_radius": 5.0}}]'
+
+    This potential will encourage the cyclic peptide to maintain a regular 12-sided polygon shape with a radius of 5.0 Angstroms. You can adjust the `n_residues`, `target_radius`, and `weight` parameters to suit your specific needs.
+
     '''
 
     def __init__(self, n_residues, target_radius=5.0, weight=1.0):
