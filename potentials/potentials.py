@@ -704,6 +704,62 @@ class binder_any_ReLU(Potential):
 
         return -1 * self.weight * potential
 
+class cyclic_peptide_geometry(Potential):
+    '''
+    Potential to encourage a specific geometry for cyclic peptides.
+    This potential aims to maintain a regular polygon shape with a specified number of sides.
+    '''
+
+    def __init__(self, n_residues, target_radius=5.0, weight=1.0):
+        self.n_residues = n_residues
+        self.target_radius = target_radius
+        self.weight = weight
+
+        # Calculate target coordinates for a regular polygon
+        angles = np.linspace(0, 2*np.pi, n_residues, endpoint=False)
+        self.target_coords = torch.tensor([
+            [np.cos(angle) * target_radius, np.sin(angle) * target_radius, 0]
+            for angle in angles
+        ], dtype=torch.float32)
+
+    def compute(self, xyz):
+        # Extract CA coordinates
+        Ca = xyz[:self.n_residues, 1]  # [n_residues, 3]
+
+        # Calculate centroid
+        centroid = torch.mean(Ca, dim=0, keepdim=True)  # [1, 3]
+
+        # Center the coordinates
+        centered_coords = Ca - centroid
+
+        # Calculate the current radius for each residue
+        current_radii = torch.norm(centered_coords, dim=1)
+
+        # Calculate the angular positions of the current coordinates
+        current_angles = torch.atan2(centered_coords[:, 1], centered_coords[:, 0])
+
+        # Sort the current angles and get the sorting indices
+        sorted_indices = torch.argsort(current_angles)
+
+        # Reorder the centered coordinates based on the sorted angles
+        ordered_coords = centered_coords[sorted_indices]
+
+        # Calculate the distance between the current and target coordinates
+        distance = torch.norm(ordered_coords - self.target_coords, dim=1)
+
+        # Calculate the potential as the mean squared distance
+        potential = torch.mean(distance**2)
+
+        # Add a term to encourage uniform spacing between residues
+        angle_diffs = torch.diff(current_angles[sorted_indices], append=current_angles[sorted_indices[:1]] + 2*np.pi)
+        angle_uniformity = torch.var(angle_diffs)
+
+        # Combine the distance and angle uniformity terms
+        combined_potential = potential + angle_uniformity
+
+        # Return the negative potential (to be maximized)
+        return -self.weight * combined_potential
+
 # Dictionary of types of potentials indexed by name of potential. Used by PotentialManager.
 # If you implement a new potential you must add it to this dictionary for it to be used by
 # the PotentialManager
@@ -719,6 +775,9 @@ implemented_potentials = { 'monomer_ROG':          monomer_ROG,
                            'olig_intra_contacts':  olig_intra_contacts,
                            'olig_contacts':        olig_contacts,
                            'substrate_contacts':    substrate_contacts}
+
+# Add the new potential to the implemented_potentials dictionary
+implemented_potentials['cyclic_peptide_geometry'] = cyclic_peptide_geometry
 
 require_binderlen      = { 'binder_ROG',
                            'binder_distance_ReLU',
